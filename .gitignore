@@ -1,0 +1,8 @@
+/TorchDeepDanbooru/model-resnet_custom_v3.pt
+/Real-ESRGAN/realesrgan.egg-info/
+/Real-ESRGAN/.eggs/
+/checkpoints/
+/temp/
+/outputs/
+/data/
+/.idea/
