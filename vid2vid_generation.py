@@ -11,7 +11,7 @@ import math
 os.environ['MKL_SERVICE_FORCE_INTEL'] = '1'
 
 
-def generate_configs(args):
+def generate_configs():
     for train_config_num in range(math.ceil(args.n_sample_frames / args.num_splits)):
         train_configs = dict(seed=args.seed,
                              mixed_precision=args.mixed_precision,
@@ -83,7 +83,7 @@ def generate_configs(args):
         OmegaConf.save(inference_configs, f"./temp/inference_{os.path.basename(args.video_in_path).split('.')[0]}_{inference_config_num}.yaml")
 
 
-def generate_hiresfix_configs(args):
+def generate_hiresfix_configs():
     for hiresfix_train_config_num in range(math.ceil(frame_count / args.hiresfix_num_splits)):
         hiresfix_train_configs = dict(seed=args.seed,
                                       mixed_precision=args.mixed_precision,
@@ -147,35 +147,35 @@ def generate_hiresfix_configs(args):
         OmegaConf.save(hiresfix_inference_configs, f"./temp/hiresfix_inference_{os.path.basename(args.video_in_path).split('.')[0]}_{hiresfix_inference_configs_num}.yaml")
 
 
-def hiresfix_train_inference(cudaid, i):
-    if cudaid == args.gpu_ids.split(",")[0]:
+def hiresfix_train_inference(gpu_id, num):
+    if gpu_id == args.gpu_ids.split(",")[0]:
         if not args.use_hiresfix_pretraining_model:
-            subprocess.run(["python", "train_tuneavideo.py", "--cuda", cudaid, "--config", f"./temp/hiresfix_train_{os.path.basename(args.video_in_path).split('.')[0]}_{i}.yaml"], check=True)
-        subprocess.run(["python", "inference.py", "--cuda", cudaid, "--config", f"./temp/hiresfix_inference_{os.path.basename(args.video_in_path).split('.')[0]}_{i}.yaml"], check=True)
+            subprocess.run(["python", "train_tuneavideo.py", "--cuda", gpu_id, "--config", f"./temp/hiresfix_train_{os.path.basename(args.video_in_path).split('.')[0]}_{num}.yaml"], check=True)
+        subprocess.run(["python", "inference.py", "--cuda", gpu_id, "--config", f"./temp/hiresfix_inference_{os.path.basename(args.video_in_path).split('.')[0]}_{num}.yaml"], check=True)
     else:
         if not args.use_hiresfix_pretraining_model:
-            subprocess.run(["python", "train_tuneavideo.py", "--cuda", cudaid, "--config", f"./temp/hiresfix_train_{os.path.basename(args.video_in_path).split('.')[0]}_{i}.yaml"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
-        subprocess.run(["python", "inference.py", "--cuda", cudaid, "--config", f"./temp/hiresfix_inference_{os.path.basename(args.video_in_path).split('.')[0]}_{i}.yaml"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+            subprocess.run(["python", "train_tuneavideo.py", "--cuda", gpu_id, "--config", f"./temp/hiresfix_train_{os.path.basename(args.video_in_path).split('.')[0]}_{num}.yaml"], stdout=subprocess.PIPE, check=True)
+        subprocess.run(["python", "inference.py", "--cuda", gpu_id, "--config", f"./temp/hiresfix_inference_{os.path.basename(args.video_in_path).split('.')[0]}_{num}.yaml"], stdout=subprocess.PIPE, check=True)
     if args.delete_checkpoints:
-        shutil.rmtree(f"./temp/hiresfix_train_{os.path.basename(args.video_in_path).split('.')[0]}_{i}")
+        shutil.rmtree(f"./temp/hiresfix_train_{os.path.basename(args.video_in_path).split('.')[0]}_{num}")
 
 
-def train_inference(cudaid, i):
-    if cudaid == args.gpu_ids.split(",")[0]:
+def train_inference(gpu_id, num):
+    if gpu_id == args.gpu_ids.split(",")[0]:
         if not args.use_pretraining_mode:
-            subprocess.run(["python", "train_tuneavideo.py", "--cuda", cudaid, "--config", f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_{i}.yaml"], check=True)
-        subprocess.run(["python", "inference.py", "--cuda", cudaid, "--config", f"./temp/inference_{os.path.basename(args.video_in_path).split('.')[0]}_{i}.yaml"], check=True)
+            subprocess.run(["python", "train_tuneavideo.py", "--cuda", gpu_id, "--config", f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_{num}.yaml"], check=True)
+        subprocess.run(["python", "inference.py", "--cuda", gpu_id, "--config", f"./temp/inference_{os.path.basename(args.video_in_path).split('.')[0]}_{num}.yaml"], check=True)
     else:
         if not args.use_pretraining_mode:
-            subprocess.run(["python", "train_tuneavideo.py", "--cuda", cudaid, "--config", f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_{i}.yaml"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
-        subprocess.run(["python", "inference.py", "--cuda", cudaid, "--config", f"./temp/inference_{os.path.basename(args.video_in_path).split('.')[0]}_{i}.yaml"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+            subprocess.run(["python", "train_tuneavideo.py", "--cuda", gpu_id, "--config", f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_{num}.yaml"], stdout=subprocess.PIPE, check=True)
+        subprocess.run(["python", "inference.py", "--cuda", gpu_id, "--config", f"./temp/inference_{os.path.basename(args.video_in_path).split('.')[0]}_{num}.yaml"], stdout=subprocess.PIPE, check=True)
     if args.delete_checkpoints:
-        shutil.rmtree(f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_{i}")
+        shutil.rmtree(f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_{num}")
 
 
-def split_chunks(m, n: int) -> list:
-    string = [i for i in range(m)]
-    return [string[i:i+n] for i in range(0, len(string), n)]
+def split_chunks(m, n):
+    string = [chunk for chunk in range(m)]
+    return [string[chunk:chunk+n] for chunk in range(0, len(string), n)]
 
 
 if __name__ == "__main__":
@@ -186,10 +186,15 @@ if __name__ == "__main__":
 
     os.makedirs("./temp/", exist_ok=True)
     os.makedirs(os.path.dirname(args.video_out_path), exist_ok=True)
+
+    # 生成训练和推理配置文件
     if not args.only_hiresfix:
-        generate_configs(args)
+        generate_configs()
+
     video_list = []
     train_inference_threads = []
+
+    # 生成多线程处理块
     num_splits_gpu_list = split_chunks(math.ceil(args.n_sample_frames / args.num_splits), len(args.gpu_ids.split(",")))
 
     # 训练推理线程
@@ -205,26 +210,31 @@ if __name__ == "__main__":
         for train_inference_thread in train_inference_threads:
             train_inference_thread.join()
 
-
     if args.hiresfix:
+        # 图片汇总
         all_frames_path_list = merge_video(video_list, f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_full_pic", generate_video=False)
+
         # 超分辨率
         if args.hiresfix_raise:
             down_up_sample(f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_full_pic", down_sample=2, no_down=True)
         else:
             down_up_sample(f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_full_pic", down_sample=2, no_down=False)
 
+        # 生成视频
         video = mp.ImageSequenceClip(all_frames_path_list, fps=get_video_fps(args.video_in_path))
         video.write_videofile(f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_full.mp4", codec="mpeg4")
 
         frame_count = len(all_frames_path_list)
         print("inference frame count: ", frame_count)
 
-        generate_hiresfix_configs(args)
+        # 生成hiresfix训练和推理配置文件
+        generate_hiresfix_configs()
 
         for num_hiresfix in range(args.hiresfix_num):
             hiresfi_video_list = []
             hiresfix_train_inference_threads = []
+
+            # 生成hiresfix多线程处理块
             hiresfix_num_splits_gpu_list = split_chunks(math.ceil(frame_count / args.hiresfix_num_splits), len(args.gpu_ids.split(",")))
 
             # hiresfix训练推理线程
@@ -240,12 +250,15 @@ if __name__ == "__main__":
                     hiresfix_train_inference_thread.join()
 
             if num_hiresfix == args.hiresfix_num - 1:
+                # 生成输出视频
                 merge_video(hiresfi_video_list, args.video_out_path, speed=args.sample_frame_rate, fps=get_video_fps(args.video_in_path))
             else:
+                # 生成视频用于下一次hiresfix
                 merge_video(hiresfi_video_list, f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_full.mp4", fps=get_video_fps(args.video_in_path))
             if not args.hiresfix_with_train:
                 args.use_hiresfix_pretraining_model = True
     else:
+        # 生成输出视频
         merge_video(video_list, args.video_out_path, speed=args.sample_frame_rate, fps=get_video_fps(args.video_in_path))
 
     if args.delete_temp:

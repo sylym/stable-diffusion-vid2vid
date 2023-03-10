@@ -140,7 +140,6 @@ class TuneAVideoPipeline(DiffusionPipeline, TextualInversionLoaderMixin):
             if cpu_offloaded_model is not None:
                 cpu_offload(cpu_offloaded_model, device)
 
-
     @property
     def _execution_device(self):
         if self.device != torch.device("meta") or not hasattr(self.unet, "_hf_hook"):
@@ -401,7 +400,7 @@ class TuneAVideoPipeline(DiffusionPipeline, TextualInversionLoaderMixin):
     def PIL_load_video(self, videoFileName, sample_frame_rate, sample_start_idx, video_length):
         cap = cv2.VideoCapture(videoFileName)
         all_frames = []
-        sample_frames =[]
+        sample_frames = []
         while True:
             success, data = cap.read()
             if success:

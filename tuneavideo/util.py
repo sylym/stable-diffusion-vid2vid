@@ -34,20 +34,20 @@ def save_videos_grid(videos: torch.Tensor, path: str):
 
 # DDIM Inversion
 @torch.no_grad()
-def init_prompt(prompt, pipeline):
-    uncond_input = pipeline.tokenizer(
-        [""], padding="max_length", max_length=pipeline.tokenizer.model_max_length,
+def init_prompt(prompt, pipe):
+    uncond_input = pipe.tokenizer(
+        [""], padding="max_length", max_length=pipe.tokenizer.model_max_length,
         return_tensors="pt"
     )
-    uncond_embeddings = pipeline.text_encoder(uncond_input.input_ids.to(pipeline.device))[0]
-    text_input = pipeline.tokenizer(
+    uncond_embeddings = pipe.text_encoder(uncond_input.input_ids.to(pipe.device))[0]
+    text_input = pipe.tokenizer(
         [prompt],
         padding="max_length",
-        max_length=pipeline.tokenizer.model_max_length,
+        max_length=pipe.tokenizer.model_max_length,
         truncation=True,
         return_tensors="pt",
     )
-    text_embeddings = pipeline.text_encoder(text_input.input_ids.to(pipeline.device))[0]
+    text_embeddings = pipe.text_encoder(text_input.input_ids.to(pipe.device))[0]
     context = torch.cat([uncond_embeddings, text_embeddings])
 
     return context
@@ -72,22 +72,22 @@ def get_noise_pred_single(latents, t, context, unet):
 
 
 @torch.no_grad()
-def ddim_loop(pipeline, ddim_scheduler, latent, num_inv_steps, prompt):
-    context = init_prompt(prompt, pipeline)
+def ddim_loop(pipe, ddim_scheduler, latent, num_inv_steps, prompt):
+    context = init_prompt(prompt, pipe)
     uncond_embeddings, cond_embeddings = context.chunk(2)
     all_latent = [latent]
     latent = latent.clone().detach()
     for i in tqdm(range(num_inv_steps)):
         t = ddim_scheduler.timesteps[len(ddim_scheduler.timesteps) - i - 1]
-        noise_pred = get_noise_pred_single(latent, t, cond_embeddings, pipeline.unet)
+        noise_pred = get_noise_pred_single(latent, t, cond_embeddings, pipe.unet)
         latent = next_step(noise_pred, t, latent, ddim_scheduler)
         all_latent.append(latent)
     return all_latent
 
 
 @torch.no_grad()
-def ddim_inversion(pipeline, ddim_scheduler, video_latent, num_inv_steps, prompt=""):
-    ddim_latents = ddim_loop(pipeline, ddim_scheduler, video_latent, num_inv_steps, prompt)
+def ddim_inversion(pipe, ddim_scheduler, video_latent, num_inv_steps, prompt=""):
+    ddim_latents = ddim_loop(pipe, ddim_scheduler, video_latent, num_inv_steps, prompt)
     return ddim_latents
 
 
@@ -156,15 +156,16 @@ def use_lora(pretrained_LoRA_path, pipe, alpha):
 
 def down_up_sample(input_frames_folder, down_sample, no_down=False):
     if down_sample == 2 or down_sample == 4:
+        temp_frames_folder = input_frames_folder + "_temp"
+        if os.path.exists(temp_frames_folder):
+            shutil.rmtree(temp_frames_folder)
         if no_down:
             print("up sample with x" + str(down_sample))
-            temp_frames_folder = input_frames_folder + "_temp"
             subprocess.run(["python", "./Real-ESRGAN/inference_realesrgan.py", "-i", input_frames_folder, "-o", temp_frames_folder, "-s", str(down_sample), "--fp32"], check=True)
             shutil.rmtree(input_frames_folder)
             os.rename(os.path.abspath(temp_frames_folder), os.path.abspath(input_frames_folder))
         else:
             print("down and up sample with x" + str(down_sample))
-            temp_frames_folder = input_frames_folder + "_temp"
             subprocess.run(["python", "./Real-ESRGAN/inference_realesrgan.py", "-i", input_frames_folder, "-o", temp_frames_folder, "-s", str(down_sample), "--fp32"], check=True)
             shutil.rmtree(input_frames_folder)
             for file in os.listdir(temp_frames_folder):
