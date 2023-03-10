@@ -212,13 +212,13 @@ if __name__ == "__main__":
 
     if args.hiresfix:
         # 图片汇总
-        all_frames_path_list = merge_video(video_list, f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_full_pic", generate_video=False)
+        all_frames_path_list = merge_video(video_list, f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_full_pic_processed", generate_video=False)
 
         # 超分辨率
         if args.hiresfix_raise:
-            down_up_sample(f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_full_pic", down_sample=2, no_down=True)
+            down_up_sample(f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_full_pic_processed", down_sample=2, no_down=True)
         else:
-            down_up_sample(f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_full_pic", down_sample=2, no_down=False)
+            down_up_sample(f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_full_pic_processed", down_sample=2, no_down=False)
 
         # 生成视频
         video = mp.ImageSequenceClip(all_frames_path_list, fps=get_video_fps(args.video_in_path))
@@ -254,7 +254,7 @@ if __name__ == "__main__":
                 merge_video(hiresfi_video_list, args.video_out_path, speed=args.sample_frame_rate, fps=get_video_fps(args.video_in_path))
             else:
                 # 生成视频用于下一次hiresfix
-                merge_video(hiresfi_video_list, f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_full.mp4", fps=get_video_fps(args.video_in_path))
+                merge_video(hiresfi_video_list, f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_full", fps=get_video_fps(args.video_in_path))
             if not args.hiresfix_with_train:
                 args.use_hiresfix_pretraining_model = True
     else:

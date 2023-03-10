@@ -54,8 +54,8 @@ sample_frame_rate: 5
 video_width: 1024
 # 生成视频的高度（小于等于传入视频）
 video_height: 1024
-# 生成视频的路径
-video_out_path: "./outputs/Bocchi_action.mp4"
+# 生成视频的路径（无文件扩展名，会生成一个MP4视频和一个储存图片序列的同名文件夹）
+video_out_path: "./outputs/Bocchi_action"
 
 
 # 训练步数
