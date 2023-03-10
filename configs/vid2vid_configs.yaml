@@ -51,15 +51,15 @@ sample_frame_rate: 5
 
 
 # 生成视频的宽度（小于等于传入视频）
-video_width: 512
+video_width: 1024
 # 生成视频的高度（小于等于传入视频）
-video_height: 512
+video_height: 1024
 # 生成视频的路径
 video_out_path: "./outputs/Bocchi_action.mp4"
 
 
 # 训练步数
-num_train_steps: 0
+num_train_steps: 500
 # 推理步数
 num_inference_steps: 50
 # 与文字提示的相关度（越大越符合文字提示）
@@ -73,7 +73,7 @@ use_inv_latent: True
 # 视频稳定的步数(越小与原视频越像，越大泛化能力越强)
 num_inv_steps: 50
 # 视频生成拆分数（将原视频拆分进行生成以减少显存使用）
-num_splits: 2
+num_splits: 20
 # 使用conrolnet
 use_conrolnet: True
 # conrolnet参考视频预处理模式 [canny,depth,hed,mlsd,normal,openpose,scribble,seg]
@@ -99,7 +99,7 @@ hiresfix_num_inv_steps: 10
 # 高分修正拆分数（将原视频拆分进行生成以减少显存使用）
 hiresfix_num_splits: 2
 # 提高分辨率（超分到指定分辨率）
-hiresfix_raise: False
+hiresfix_raise: True
 # 高分修正次数
 hiresfix_num: 1
 # 多次高分修正时是否进行训练

@@ -3,7 +3,7 @@ import shutil
 import numpy as np
 from typing import Union
 from PIL import Image
-
+import re
 import torch
 
 from tqdm import tqdm
@@ -154,27 +154,25 @@ def use_lora(pretrained_LoRA_path, pipe, alpha):
     return pipe
 
 
-def down_up_sample(temp_path_mp4, down_sample, no_down=False):
-    video = cv2.VideoCapture(temp_path_mp4)
-    width = video.get(cv2.CAP_PROP_FRAME_WIDTH)
-    height = video.get(cv2.CAP_PROP_FRAME_HEIGHT)
-    video.release()
+def down_up_sample(input_frames_folder, down_sample, no_down=False):
     if down_sample == 2 or down_sample == 4:
         if no_down:
             print("up sample with x" + str(down_sample))
-            temp_path_mp4_folder = os.path.dirname(temp_path_mp4)
-            subprocess.run(["python", "./Real-ESRGAN/inference_realesrgan_video.py", "-i", temp_path_mp4, "-o", temp_path_mp4_folder, "-s", str(down_sample)], check=True)
-            os.remove(temp_path_mp4)
-            video_path = temp_path_mp4[:-4] + "_out.mp4"
-            os.rename(os.path.abspath(video_path), os.path.abspath(temp_path_mp4))
+            temp_frames_folder = input_frames_folder + "_temp"
+            subprocess.run(["python", "./Real-ESRGAN/inference_realesrgan.py", "-i", input_frames_folder, "-o", temp_frames_folder, "-s", str(down_sample), "--fp32"], check=True)
+            shutil.rmtree(input_frames_folder)
+            os.rename(os.path.abspath(temp_frames_folder), os.path.abspath(input_frames_folder))
         else:
             print("down and up sample with x" + str(down_sample))
-            temp_path_mp4_up_res_folder = os.path.dirname(temp_path_mp4)
-            subprocess.run(["python", "./Real-ESRGAN/inference_realesrgan_video.py", "-i", temp_path_mp4, "-o", temp_path_mp4_up_res_folder, "-s", str(down_sample)], check=True)
-            os.remove(temp_path_mp4)
-            video_path = temp_path_mp4[:-4] + "_out.mp4"
-            subprocess.run(["ffmpeg", "-i", video_path, "-vf", f"scale={width}:{height}", os.path.abspath(temp_path_mp4)], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            os.remove(video_path)
+            temp_frames_folder = input_frames_folder + "_temp"
+            subprocess.run(["python", "./Real-ESRGAN/inference_realesrgan.py", "-i", input_frames_folder, "-o", temp_frames_folder, "-s", str(down_sample), "--fp32"], check=True)
+            shutil.rmtree(input_frames_folder)
+            for file in os.listdir(temp_frames_folder):
+                img = cv2.imread(os.path.join(temp_frames_folder, file), cv2.IMREAD_UNCHANGED)
+                new_size = (img.shape[1] // 2, img.shape[0] // 2)
+                resized_img = cv2.resize(img, new_size, interpolation=cv2.INTER_LANCZOS4)
+                cv2.imwrite(os.path.join(temp_frames_folder, file), resized_img)
+            os.rename(os.path.abspath(temp_frames_folder), os.path.abspath(input_frames_folder))
     else:
         print("do noting with down_up_sample")
 
@@ -192,26 +190,29 @@ def get_video_fps(video_path):
     return clip.fps
 
 
-def get_video_frame_count(video_path):
-    clip = mp.VideoFileClip(video_path)
-    return clip.reader.nframes
-
-
-def merge_video(video_list, output_path, speed=1, generate_video=True):
-    video_list_out = []
+def merge_video(video_list, output_path, fps=59.94, speed=1, generate_video=True):
     if os.path.exists(output_path):
         shutil.rmtree(output_path)
     os.makedirs(output_path)
 
-    for video_path in video_list:  # 遍历视频路径列表
-        for image_path in os.listdir(video_path):
-            shutil.copyfile
-            image_path
-        video = mp.VideoFileClip(str(video_path))  # 把每个视频文件转换成VideoFileClip对象
-        video_list_out.append(video)  # 添加到视频列表中
-    final_video = mp.concatenate_videoclips(video_list_out)  # 合并视频列表
-    final_video = final_video.fx(vfx.speedx, 1 / speed)
-    final_video.write_videofile(output_file)  # 保存合并后的视频
+    content_list = {}
+    all_frames_path_list = []
+    for folder in video_list:
+        content_list[folder] = os.listdir(folder)
+    for key, value in content_list.items():
+        for file in value:
+            source_path = os.path.join(key, file)
+            destination_path = os.path.join(output_path, file)
+            shutil.copy(source_path, destination_path)
+            all_frames_path_list.append(destination_path)
+
+    all_frames_path_list = sorted(all_frames_path_list, key=lambda s: sum(((s, int(n)) for s, n in re.findall(r'(\D+)(\d+)', 'a%s0' % s)), ()))
+
+    if generate_video:
+        video = mp.ImageSequenceClip(all_frames_path_list, fps=fps)
+        video = video.fx(vfx.speedx, 1 / speed)
+        video.write_videofile(output_path + ".mp4", codec="mpeg4")
+    return all_frames_path_list
 
 
 def controlnet_image_preprocessing(image_list, video_prepare_type):
