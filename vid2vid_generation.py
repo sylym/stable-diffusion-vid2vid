@@ -4,8 +4,7 @@ import subprocess
 from omegaconf import OmegaConf
 import threading
 from TorchDeepDanbooru.get_prompt import detect_prompt
-from tuneavideo.util import get_video_fps, merge_video, down_up_sample
-import moviepy.editor as mp
+from tuneavideo.util import get_video_fps, merge_video, down_up_sample, get_video_frame_count
 import shutil
 import math
 os.environ['MKL_SERVICE_FORCE_INTEL'] = '1'
@@ -154,8 +153,8 @@ def hiresfix_train_inference(gpu_id, num):
         subprocess.run(["python", "inference.py", "--cuda", gpu_id, "--config", f"./temp/hiresfix_inference_{os.path.basename(args.video_in_path).split('.')[0]}_{num}.yaml"], check=True)
     else:
         if not args.use_hiresfix_pretraining_model:
-            subprocess.run(["python", "train_tuneavideo.py", "--cuda", gpu_id, "--config", f"./temp/hiresfix_train_{os.path.basename(args.video_in_path).split('.')[0]}_{num}.yaml"], stdout=subprocess.PIPE, check=True)
-        subprocess.run(["python", "inference.py", "--cuda", gpu_id, "--config", f"./temp/hiresfix_inference_{os.path.basename(args.video_in_path).split('.')[0]}_{num}.yaml"], stdout=subprocess.PIPE, check=True)
+            subprocess.run(["python", "train_tuneavideo.py", "--cuda", gpu_id, "--config", f"./temp/hiresfix_train_{os.path.basename(args.video_in_path).split('.')[0]}_{num}.yaml"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+        subprocess.run(["python", "inference.py", "--cuda", gpu_id, "--config", f"./temp/hiresfix_inference_{os.path.basename(args.video_in_path).split('.')[0]}_{num}.yaml"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
     if args.delete_checkpoints:
         shutil.rmtree(f"./temp/hiresfix_train_{os.path.basename(args.video_in_path).split('.')[0]}_{num}")
 
@@ -167,8 +166,8 @@ def train_inference(gpu_id, num):
         subprocess.run(["python", "inference.py", "--cuda", gpu_id, "--config", f"./temp/inference_{os.path.basename(args.video_in_path).split('.')[0]}_{num}.yaml"], check=True)
     else:
         if not args.use_pretraining_mode:
-            subprocess.run(["python", "train_tuneavideo.py", "--cuda", gpu_id, "--config", f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_{num}.yaml"], stdout=subprocess.PIPE, check=True)
-        subprocess.run(["python", "inference.py", "--cuda", gpu_id, "--config", f"./temp/inference_{os.path.basename(args.video_in_path).split('.')[0]}_{num}.yaml"], stdout=subprocess.PIPE, check=True)
+            subprocess.run(["python", "train_tuneavideo.py", "--cuda", gpu_id, "--config", f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_{num}.yaml"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+        subprocess.run(["python", "inference.py", "--cuda", gpu_id, "--config", f"./temp/inference_{os.path.basename(args.video_in_path).split('.')[0]}_{num}.yaml"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
     if args.delete_checkpoints:
         shutil.rmtree(f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_{num}")
 
@@ -212,7 +211,7 @@ if __name__ == "__main__":
 
     if args.hiresfix:
         # 图片汇总
-        all_frames_path_list = merge_video(video_list, f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_full_pic_processed", generate_video=False)
+        merge_video(video_list, f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_full_pic_processed", generate_video=False)
 
         # 超分辨率
         if args.hiresfix_raise:
@@ -221,16 +220,14 @@ if __name__ == "__main__":
             down_up_sample(f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_full_pic_processed", down_sample=2, no_down=False)
 
         # 生成视频
-        video = mp.ImageSequenceClip(all_frames_path_list, fps=get_video_fps(args.video_in_path))
-        video.write_videofile(f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_full.mp4", codec="mpeg4")
-
-        frame_count = len(all_frames_path_list)
-        print("inference frame count: ", frame_count)
-
-        # 生成hiresfix训练和推理配置文件
-        generate_hiresfix_configs()
+        subprocess.run(["ffmpeg", "-y", "-r", str(get_video_fps(args.video_in_path)), "-f", "image2", "-i", f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_full_pic_processed/%d.png", "-c:v", "libx264", "-crf", "0", "-vf", f"fps={str(get_video_fps(args.video_in_path))}", f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_full.mp4"], stderr=subprocess.PIPE, stdout=subprocess.PIPE, check=True)
 
         for num_hiresfix in range(args.hiresfix_num):
+            # 生成hiresfix训练和推理配置文件
+            frame_count = get_video_frame_count(f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_full.mp4")
+            print("inference frame count: ", frame_count)
+            generate_hiresfix_configs()
+
             hiresfi_video_list = []
             hiresfix_train_inference_threads = []
 

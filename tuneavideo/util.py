@@ -191,6 +191,11 @@ def get_video_fps(video_path):
     return clip.fps
 
 
+def get_video_frame_count(video_path):
+    clip = mp.VideoFileClip(video_path)
+    return clip.reader.nframes - 1
+
+
 def merge_video(video_list, output_path, fps=59.94, speed=1, generate_video=True):
     if os.path.exists(output_path):
         shutil.rmtree(output_path)
@@ -209,11 +214,15 @@ def merge_video(video_list, output_path, fps=59.94, speed=1, generate_video=True
 
     all_frames_path_list = sorted(all_frames_path_list, key=lambda s: sum(((s, int(n)) for s, n in re.findall(r'(\D+)(\d+)', 'a%s0' % s)), ()))
 
+    for i, file_path in enumerate(all_frames_path_list):
+        dir_name = os.path.dirname(file_path)
+        ext_name = os.path.splitext(file_path)[1]
+        new_file_name = str(i + 1) + ext_name
+        new_file_path = os.path.join(dir_name, new_file_name)
+        os.rename(file_path, new_file_path)
+
     if generate_video:
-        video = mp.ImageSequenceClip(all_frames_path_list, fps=fps)
-        video = video.fx(vfx.speedx, 1 / speed)
-        video.write_videofile(output_path + ".mp4", codec="mpeg4")
-    return all_frames_path_list
+        subprocess.run(["ffmpeg", "-y", "-r", str(fps), "-f", "image2", "-i", os.path.join(output_path, "%d.png"), "-c:v", "libx264", "-crf", "0", "-vf", f"fps={fps}", output_path + ".mp4"], stderr=subprocess.PIPE, stdout=subprocess.PIPE, check=True)
 
 
 def controlnet_image_preprocessing(image_list, video_prepare_type):
