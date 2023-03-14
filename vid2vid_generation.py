@@ -42,7 +42,6 @@ def generate_configs():
     for inference_config_num in range(math.ceil(args.n_sample_frames / args.num_splits)):
         inference_configs = dict(pretrained_model_path=args.pretrained_model_path,
                                  pretrained_vae_path=args.pretrained_vae_path,
-                                 pretrained_controlnet_path=f"./checkpoints/controlnet/sd-controlnet-{args.controlnet_video_prepare_type}",
                                  output_dir=f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_{inference_config_num}",
                                  seed=args.seed, mixed_precision=args.mixed_precision,)
         inference_config_inference_data = dict(negative_prompt=args.inference_negative_prompt,
@@ -55,7 +54,7 @@ def generate_configs():
                                                use_vid2vid=args.use_vid2vid,
                                                video_strength=args.video_strength,
                                                use_conrolnet=args.use_conrolnet,
-                                               video_prepare_type=args.controlnet_video_prepare_type,
+                                               video_prepare_type_list=args.controlnet_video_prepare_type,
                                                controlnet_conditioning_scale=args.controlnet_conditioning_scale)
         if args.hiresfix and args.hiresfix_raise:
             inference_config_inference_data["width"] = args.video_width // 2
@@ -109,7 +108,6 @@ def generate_hiresfix_configs():
     for hiresfix_inference_configs_num in range(math.ceil(frame_count / args.hiresfix_num_splits)):
         hiresfix_inference_configs = dict(pretrained_model_path=args.pretrained_model_path,
                                           pretrained_vae_path=args.pretrained_vae_path,
-                                          pretrained_controlnet_path=f"./checkpoints/controlnet/sd-controlnet-{args.hiresfix_controlnet_video_prepare_type}",
                                           output_dir=f"./temp/hiresfix_train_{os.path.basename(args.video_in_path).split('.')[0]}_{hiresfix_inference_configs_num}",
                                           seed=args.seed, mixed_precision=args.mixed_precision,)
         hiresfix_inference_config_inference_data = dict(negative_prompt=args.inference_negative_prompt,
@@ -123,7 +121,7 @@ def generate_hiresfix_configs():
                                                         video_strength=args.hiresfix_strength,
                                                         width=args.video_width,
                                                         use_conrolnet=args.hiresfix_use_conrolnet,
-                                                        video_prepare_type=args.hiresfix_controlnet_video_prepare_type,
+                                                        video_prepare_type_list=args.hiresfix_controlnet_video_prepare_type,
                                                         controlnet_conditioning_scale=args.hiresfix_controlnet_conditioning_scale,
                                                         height=args.video_height)
         if frame_count % args.hiresfix_num_splits != 0 and hiresfix_inference_configs_num == math.ceil(frame_count / args.hiresfix_num_splits) - 1:

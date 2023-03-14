@@ -1,21 +1,23 @@
 # Adapted from https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/stable_diffusion/pipeline_stable_diffusion.py
 import cv2
 import inspect
-from typing import Callable, List, Optional, Union
+from typing import Callable, List, Optional, Union, Tuple, Dict
 from dataclasses import dataclass
 
 import numpy as np
 import PIL.Image
 import torch
+from torch import nn
 
 from diffusers.utils import is_accelerate_available, PIL_INTERPOLATION
 from packaging import version
 from transformers import CLIPTextModel, CLIPTokenizer
 
+from diffusers.modeling_utils import ModelMixin
 from diffusers.configuration_utils import FrozenDict
 from diffusers.models import AutoencoderKL
 from diffusers.pipeline_utils import DiffusionPipeline
-from ..models.controlnet import ControlNetModel
+from ..models.controlnet import ControlNetModel, ControlNetOutput
 from diffusers.schedulers import (
     DDIMScheduler,
     DPMSolverMultistepScheduler,
@@ -43,6 +45,58 @@ class TuneAVideoPipelineOutput(BaseOutput):
     videos: Union[torch.Tensor, np.ndarray]
 
 
+class MultiControlNetModel(ModelMixin):
+    r"""
+    Multiple `ControlNetModel` wrapper class for Multi-ControlNet
+    This module is a wrapper for multiple instances of the `ControlNetModel`. The `forward()` API is designed to be
+    compatible with `ControlNetModel`.
+    Args:
+        controlnets (`List[ControlNetModel]`):
+            Provides additional conditioning to the unet during the denoising process. You must set multiple
+            `ControlNetModel` as a list.
+    """
+
+    def __init__(self, controlnets: Union[List[ControlNetModel], Tuple[ControlNetModel]]):
+        super().__init__()
+        self.nets = nn.ModuleList(controlnets)
+
+    def forward(
+        self,
+        sample: torch.FloatTensor,
+        timestep: Union[torch.Tensor, float, int],
+        encoder_hidden_states: torch.Tensor,
+        controlnet_cond: List[torch.tensor],
+        conditioning_scale: List[float],
+        class_labels: Optional[torch.Tensor] = None,
+        timestep_cond: Optional[torch.Tensor] = None,
+        attention_mask: Optional[torch.Tensor] = None,
+        return_dict: bool = True,
+    ) -> Union[ControlNetOutput, Tuple]:
+        for i, (image, scale, controlnet) in enumerate(zip(controlnet_cond, conditioning_scale, self.nets)):
+            down_samples, mid_sample = controlnet(
+                sample,
+                timestep,
+                encoder_hidden_states,
+                image,
+                scale,
+                class_labels,
+                timestep_cond,
+                attention_mask,
+                return_dict,
+            )
+
+            # merge samples
+            if i == 0:
+                down_block_res_samples, mid_block_res_sample = down_samples, mid_sample
+            else:
+                down_block_res_samples = [
+                    samples_prev + samples_curr
+                    for samples_prev, samples_curr in zip(down_block_res_samples, down_samples)
+                ]
+                mid_block_res_sample += mid_sample
+
+        return down_block_res_samples, mid_block_res_sample
+
 class TuneAVideoPipeline(DiffusionPipeline, TextualInversionLoaderMixin):
     _optional_components = []
 
@@ -60,7 +114,7 @@ class TuneAVideoPipeline(DiffusionPipeline, TextualInversionLoaderMixin):
             EulerAncestralDiscreteScheduler,
             DPMSolverMultistepScheduler,
         ],
-        controlnet: ControlNetModel = None,
+        controlnet: Union[List[ControlNetModel], Tuple[ControlNetModel], MultiControlNetModel] = None,
     ):
         super().__init__()
 
@@ -111,6 +165,9 @@ class TuneAVideoPipeline(DiffusionPipeline, TextualInversionLoaderMixin):
             new_config = dict(unet.config)
             new_config["sample_size"] = 64
             unet._internal_dict = FrozenDict(new_config)
+
+        if isinstance(controlnet, (list, tuple)):
+            controlnet = MultiControlNetModel(controlnet)
 
         self.register_modules(
             vae=vae,
@@ -299,7 +356,7 @@ class TuneAVideoPipeline(DiffusionPipeline, TextualInversionLoaderMixin):
                 f" {type(callback_steps)}."
             )
 
-    def prepare_image(self, image, width, height, batch_size, num_images_per_prompt, device, dtype):
+    def prepare_image(self, image, width, height, batch_size, num_images_per_prompt, device, dtype, do_classifier_free_guidance):
         if not isinstance(image, torch.Tensor):
             if isinstance(image, PIL.Image.Image):
                 image = [image]
@@ -314,13 +371,22 @@ class TuneAVideoPipeline(DiffusionPipeline, TextualInversionLoaderMixin):
                 image = torch.from_numpy(image)
             elif isinstance(image[0], torch.Tensor):
                 image = torch.cat(image, dim=0)
+
         image_batch_size = image.shape[0]
+
         if image_batch_size == 1:
             repeat_by = batch_size
         else:
+            # image batch size is the same as prompt batch size
             repeat_by = num_images_per_prompt
+
         image = image.repeat_interleave(repeat_by, dim=0)
+
         image = image.to(device=device, dtype=dtype)
+
+        if do_classifier_free_guidance:
+            image = torch.cat([image] * 2)
+
         return image
 
     def prepare_latents(self, ddim_prompt, scheduler_path, video_input_dataloader, latent_timestep, use_vid2vid, use_inv_latent, num_inv_steps, batch_size, num_channels_latents, video_length, height, width, dtype, device, generator, latents=None):
@@ -446,8 +512,8 @@ class TuneAVideoPipeline(DiffusionPipeline, TextualInversionLoaderMixin):
         scheduler_path: str = None,
         ddim_prompt: str = "",
         use_conrolnet: bool = False,
-        video_prepare_type: str = None,
-        controlnet_conditioning_scale: float = 1.0,
+        video_prepare_type_list: List[str] = None,
+        controlnet_conditioning_scale: List[float] = None,
         **kwargs,
     ):
         # Default height and width to unet
@@ -469,6 +535,9 @@ class TuneAVideoPipeline(DiffusionPipeline, TextualInversionLoaderMixin):
         # corresponds to doing no classifier free guidance.
         do_classifier_free_guidance = guidance_scale > 1.0
 
+        if isinstance(self.controlnet, MultiControlNetModel) and isinstance(controlnet_conditioning_scale, float):
+            controlnet_conditioning_scale = [controlnet_conditioning_scale] * len(self.controlnet.nets)
+
         # Encode input prompt
         text_embeddings = self._encode_prompt(
             prompt, device, num_videos_per_prompt, do_classifier_free_guidance, negative_prompt, prompt_embeds=prompt_embeds, negative_prompt_embeds=negative_prompt_embeds
@@ -476,15 +545,16 @@ class TuneAVideoPipeline(DiffusionPipeline, TextualInversionLoaderMixin):
 
         # Load conrolnet
         if use_conrolnet:
-            images = self.PIL_load_video(video_input_path, sample_frame_rate, sample_start_idx, video_length)
-            images = controlnet_image_preprocessing(images, video_prepare_type)
             prepare_images = []
-            for image in images:
-                # Prepare image
-                image = self.prepare_image(image, width, height, batch_size * num_videos_per_prompt, num_videos_per_prompt, device, self.controlnet.dtype)
-                if do_classifier_free_guidance:
-                    image = torch.cat([image] * 2)
-                prepare_images.append(image)
+            images_raw = self.PIL_load_video(video_input_path, sample_frame_rate, sample_start_idx, video_length)
+            for video_prepare_type in video_prepare_type_list:
+                prepare_images_ = []
+                images = controlnet_image_preprocessing(images_raw, video_prepare_type)
+                for image in images:
+                    # Prepare image
+                    image = self.prepare_image(image, width, height, batch_size * num_videos_per_prompt, num_videos_per_prompt, device, self.controlnet.dtype, do_classifier_free_guidance)
+                    prepare_images_.append(image)
+                prepare_images.append(prepare_images_)
 
         # Prepare timesteps
         self.scheduler.set_timesteps(num_inference_steps, device=device)
@@ -547,7 +617,8 @@ class TuneAVideoPipeline(DiffusionPipeline, TextualInversionLoaderMixin):
                             latent_model_input_list[latent_model_input_num],
                             t,
                             encoder_hidden_states=text_embeddings,
-                            controlnet_cond=prepare_images[latent_model_input_num],
+                            controlnet_cond=[prepare_image[latent_model_input_num] for prepare_image in prepare_images],
+                            conditioning_scale=controlnet_conditioning_scale,
                             return_dict=False,
                         )
                         down_block_res_samples_list.append([
@@ -560,12 +631,6 @@ class TuneAVideoPipeline(DiffusionPipeline, TextualInversionLoaderMixin):
                         torch.cat(tuple(down_block_res_sample_list), dim=2)
                         for down_block_res_sample_list in [list(items) for items in zip(*down_block_res_samples_list)]]
                     mid_block_res_sample = torch.cat(tuple(mid_block_res_sample_list), dim=2)
-
-                    down_block_res_samples = [
-                        down_block_res_sample * controlnet_conditioning_scale
-                        for down_block_res_sample in down_block_res_samples
-                    ]
-                    mid_block_res_sample *= controlnet_conditioning_scale
 
                     # predict the noise residual
                     noise_pred = self.unet(latent_model_input, t, encoder_hidden_states=text_embeddings, down_block_additional_residuals=down_block_res_samples, mid_block_additional_residual=mid_block_res_sample).sample.to(dtype=latents_dtype)

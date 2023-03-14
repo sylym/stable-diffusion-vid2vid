@@ -1,35 +1,49 @@
 # 完整模型路径
-pretrained_model_path: "./checkpoints/bocchiTheRock_v001"
+pretrained_model_path: "./checkpoints/Counterfeit-V2.5"
 # vae模型路径
-pretrained_vae_path: "./checkpoints/bocchiTheRock_v001"
+pretrained_vae_path: "./checkpoints/Counterfeit-V2.5"
 
 
 LoRA:
   # 是否使用loRA
-  use_LoRA: False
+  use_LoRA: True
   LoRA_data:
       # loRA模型路径
-    - pretrained_LoRA_path: "./checkpoints/LoRA/aquaKonosubaLora_1.safetensors"
+    - pretrained_LoRA_path: "./checkpoints/LoRA/majoNoTabitabiElaina_v30.safetensors"
       # loRA模型权重
-      LoRA_alpha: 1
+      LoRA_alpha: 0.3
 
 
 pretrained_embedding:
   # 是否使用embedding
-  use_pretrained_embedding: False
+  use_pretrained_embedding: True
   pretrained_embedding_data:
       # embedding模型路径
+    - pretrained_embedding_path: "./checkpoints/embeddings/bad_prompt_version2.pt"
+      # embedding模型关键词
+      pretrained_embedding_prompt: "bad_prompt_version2"
+    # embedding模型路径
+    - pretrained_embedding_path: "./checkpoints/embeddings/bad_prompt.pt"
+      # embedding模型关键词
+      pretrained_embedding_prompt: "bad_prompt"
+      # embedding模型路径
+    - pretrained_embedding_path: "./checkpoints/embeddings/bad-artist-anime.pt"
+      # embedding模型关键词
+      pretrained_embedding_prompt: "bad-artist-anime"
+    # embedding模型路径
+    - pretrained_embedding_path: "./checkpoints/embeddings/bad-artist.pt"
+      # embedding模型关键词
+      pretrained_embedding_prompt: "bad-artist"
+    # embedding模型路径
     - pretrained_embedding_path: "./checkpoints/embeddings/EasyNegative.pt"
       # embedding模型关键词
       pretrained_embedding_prompt: "EasyNegative"
 
 
 # 用于训练的提示 （人物主体 + 动作）
-train_prompt: man,dancing
+train_prompt: man,kick
 # 用于推理的正面提示,
-inference_prompt: Bocchi,1girl,blue eyes,pink track jacket,long sleeves,pink sweatpants,black sneakers,
-  pink long hair,bangs,hair between eyes,hair ornament,cube hair ornament,dancing,looking at viewer,
-  aniscreen,anime coloring,4K wallpaper,(detailed face with beautiful eyes)+++,beautiful hands,simple white background
+inference_prompt: masterpiece,1girl,solo,(magenta_style_costume,majo_costume,witch_hat,boots,brooch)1.6,kick,simple white background
 # 自动生成视频的正面提示（会将inference_prompt添加在提示开头）
 prompt_generation: False
 # 每帧生成关键词的概率阈值
@@ -37,17 +51,17 @@ prompt_generation_probability_threshold: 0.75
 # 最多生成的prompt数量（以概率排序，优先满足概率阈值）
 prompt_generation_num: 15
 # 用于推理的负面提示
-inference_negative_prompt: lowres,bad anatomy,(bad hands)++,text,error,(missing fingers)++,extra digit,(fewer digits)++,cropped,worst quality,low quality,normal quality,jpeg artifacts,signature,watermark,username,blurry
+inference_negative_prompt: EasyNegative,nsfw,(low quality,worst quality)1.4,(bad anatomy)+,(inaccurate limb)1.2,bad composition,inaccurate eyes,extra digit,fewer digits,(extra arms)1.2
 # 用于稳定视频的提示
 ddim_prompt: ""
 
 
 # 传入视频路径（用于训练和生成）
-video_in_path: "./data/action.mp4"
+video_in_path: "./data/action2.mp4"
 # 传入视频的帧数（使用传入视频的20帧）
-n_sample_frames: 20
+n_sample_frames: 3
 # 传入视频的帧率（每2帧使用1帧）(传入视频帧数不少于 n_sample_frames * sample_frame_rate)
-sample_frame_rate: 5
+sample_frame_rate: 3
 
 
 # 生成视频的宽度（小于等于传入视频）
@@ -55,11 +69,11 @@ video_width: 1024
 # 生成视频的高度（小于等于传入视频）
 video_height: 1024
 # 生成视频的路径（无文件扩展名，会生成一个MP4视频和一个储存图片序列的同名文件夹）
-video_out_path: "./outputs/Bocchi_action"
+video_out_path: "./outputs/elainaz_action"
 
 
 # 训练步数
-num_train_steps: 500
+num_train_steps: 50
 # 推理步数
 num_inference_steps: 50
 # 与文字提示的相关度（越大越符合文字提示）
@@ -77,9 +91,11 @@ num_splits: 20
 # 使用conrolnet
 use_conrolnet: True
 # conrolnet参考视频预处理模式 [canny,depth,hed,mlsd,normal,openpose,scribble,seg]
-controlnet_video_prepare_type: "openpose"
-# conrolnet scale
-controlnet_conditioning_scale: 1.0
+controlnet_video_prepare_type:
+  - "openpose"
+# conrolnet scale（与controlnet_video_prepare_type位置对应）
+controlnet_conditioning_scale:
+  - 1.0
 
 
 # 高分修正
@@ -97,7 +113,7 @@ hiresfix_use_inv_latent: False
 # 视频稳定的步数
 hiresfix_num_inv_steps: 10
 # 高分修正拆分数（将原视频拆分进行生成以减少显存使用）
-hiresfix_num_splits: 2
+hiresfix_num_splits: 3
 # 提高分辨率（超分到指定分辨率）
 hiresfix_raise: True
 # 高分修正次数
@@ -107,9 +123,11 @@ hiresfix_with_train: False
 # 高分修正使用conrolnet
 hiresfix_use_conrolnet: True
 # conrolnet参考视频预处理模式 [canny,depth,hed,mlsd,normal,openpose,scribble,seg]
-hiresfix_controlnet_video_prepare_type: "hed"
-# conrolnet scale
-hiresfix_controlnet_conditioning_scale: 1.0
+hiresfix_controlnet_video_prepare_type:
+  - "hed"
+# conrolnet scale（与hiresfix_controlnet_video_prepare_type位置对应）
+hiresfix_controlnet_conditioning_scale:
+  - 1.0
 
 
 # 随机数种子
@@ -133,4 +151,4 @@ use_hiresfix_pretraining_model: False
 # 生成结束后删除temp文件夹
 delete_temp: False
 # 生成视频过程中删除模型（减少在视频生成中使用的储存空间）
-delete_checkpoints: True
+delete_checkpoints: False

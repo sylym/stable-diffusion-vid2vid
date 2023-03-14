@@ -67,7 +67,7 @@ python vid2vid_generation.py --config ./configs/vid2vid_configs.yaml
  ```
 
 ## Thanks to
-This project uses some code from [diffusers](https://github.com/huggingface/diffusers), which is licensed under Apache License 2.0; [TorchDeepDanbooruA](https://github.com/AUTOMATIC1111/TorchDeepDanbooru), which is licensed under MIT License; [Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN), which is licensed under BSD License.
+This project uses some code from [diffusers](https://github.com/huggingface/diffusers), which is licensed under Apache License 2.0; [TorchDeepDanbooru](https://github.com/AUTOMATIC1111/TorchDeepDanbooru), which is licensed under MIT License; [Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN), which is licensed under BSD License.
 
 This project is based on some papers:
 - [@wu2022tuneavideo] Tune-A-Video: One-Shot Tuning of Image Diffusion Models for Text-to-Video Generation
