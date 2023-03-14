@@ -1,7 +1,7 @@
 # Adapted from https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/stable_diffusion/pipeline_stable_diffusion.py
 import cv2
 import inspect
-from typing import Callable, List, Optional, Union, Tuple, Dict
+from typing import Callable, List, Optional, Union, Tuple
 from dataclasses import dataclass
 
 import numpy as np
@@ -511,9 +511,10 @@ class TuneAVideoPipeline(DiffusionPipeline, TextualInversionLoaderMixin):
         num_inv_steps: int = 0,
         scheduler_path: str = None,
         ddim_prompt: str = "",
-        use_conrolnet: bool = False,
+        use_controlnet: bool = False,
         video_prepare_type_list: List[str] = None,
         controlnet_conditioning_scale: List[float] = None,
+        controlnet_video_path: List[str] = None,
         **kwargs,
     ):
         # Default height and width to unet
@@ -543,13 +544,16 @@ class TuneAVideoPipeline(DiffusionPipeline, TextualInversionLoaderMixin):
             prompt, device, num_videos_per_prompt, do_classifier_free_guidance, negative_prompt, prompt_embeds=prompt_embeds, negative_prompt_embeds=negative_prompt_embeds
         )
 
-        # Load conrolnet
-        if use_conrolnet:
+        # Load controlnet
+        if use_controlnet:
             prepare_images = []
             images_raw = self.PIL_load_video(video_input_path, sample_frame_rate, sample_start_idx, video_length)
-            for video_prepare_type in video_prepare_type_list:
+            for controlnet_num in range(len(video_prepare_type_list)):
                 prepare_images_ = []
-                images = controlnet_image_preprocessing(images_raw, video_prepare_type)
+                if controlnet_video_path[controlnet_num] is False:
+                    images = controlnet_image_preprocessing(images_raw, video_prepare_type_list[controlnet_num])
+                else:
+                    images = self.PIL_load_video(controlnet_video_path[controlnet_num], sample_frame_rate, sample_start_idx, video_length)
                 for image in images:
                     # Prepare image
                     image = self.prepare_image(image, width, height, batch_size * num_videos_per_prompt, num_videos_per_prompt, device, self.controlnet.dtype, do_classifier_free_guidance)
@@ -608,7 +612,7 @@ class TuneAVideoPipeline(DiffusionPipeline, TextualInversionLoaderMixin):
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
                 # use Controlnet
-                if use_conrolnet:
+                if use_controlnet:
                     latent_model_input_list = torch.unbind(latent_model_input, dim=2)
                     down_block_res_samples_list = []
                     mid_block_res_sample_list = []

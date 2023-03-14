@@ -313,4 +313,10 @@ def controlnet_image_preprocessing(image_list, video_prepare_type):
     else:
         image_list_out = image_list
 
+    if os.path.exists("./temp/controlnet_image"):
+        shutil.rmtree("./temp/controlnet_image")
+    os.makedirs("./temp/controlnet_image")
+    for image_num in range(len(image_list_out)):
+        image_list_out[image_num].save(f"./temp/controlnet_image/{video_prepare_type + str(image_num)}.png")
+
     return image_list_out

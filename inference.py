@@ -30,13 +30,22 @@ if args.seed is not None:
     set_seed(args.seed)
 
 scheduler = DDIMScheduler.from_pretrained(args.pretrained_model_path, subfolder="scheduler")
+
 controlnet = []
-for _, video_prepare_type in enumerate(args.inference_data.video_prepare_type_list):
+args.inference_data.video_prepare_type_list = []
+args.inference_data.controlnet_conditioning_scale = []
+args.inference_data.controlnet_video_path = []
+for controlnet_list in args.inference_data.controlnet:
+    video_prepare_type = controlnet_list["type"]
+    args.inference_data.video_prepare_type_list.append(video_prepare_type)
+    args.inference_data.controlnet_conditioning_scale.append(controlnet_list["conditioning_scale"])
+    args.inference_data.controlnet_video_path.append(controlnet_list["video_input"])
     controlnet_path = f"./checkpoints/controlnet/sd-controlnet-{video_prepare_type}"
     if os.path.exists(controlnet_path):
         controlnet.append(ControlNetModel.from_pretrained(controlnet_path))
     else:
         controlnet.append(ControlNetModel.from_pretrained("lllyasviel/" + os.path.basename(controlnet_path)))
+
 tokenizer = MultiTokenCLIPTokenizer.from_pretrained(args.pretrained_model_path, subfolder='tokenizer')
 text_encoder = CLIPTextModel.from_pretrained(args.pretrained_model_path, subfolder="text_encoder")
 vae = AutoencoderKL.from_pretrained(args.pretrained_vae_path, subfolder='vae')
