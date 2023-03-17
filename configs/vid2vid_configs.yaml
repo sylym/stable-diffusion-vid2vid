@@ -53,7 +53,7 @@ ddim_prompt: ""
 
 
 # 传入视频路径（用于训练和生成）
-video_in_path: "./data/action2.mp4"
+video_in_path: "./data/original.mp4"
 # 传入视频的帧数（使用传入视频的n_sample_frames帧）
 n_sample_frames: 3
 # 传入视频的帧率（每sample_frame_rate帧使用1帧）(传入视频帧数不少于 n_sample_frames * sample_frame_rate)
@@ -69,9 +69,9 @@ video_out_path: "./outputs/elainaz_action"
 
 
 # 训练步数
-num_train_steps: 50
+num_train_steps: 500
 # 推理步数
-num_inference_steps: 50
+num_inference_steps: 150
 # 与文字提示的相关度（越大越符合文字提示）
 guidance_scale: 16
 # 使用视频生成视频
@@ -81,7 +81,7 @@ video_strength: 0.9
 # 视频稳定
 use_inv_latent: True
 # 视频稳定的步数(越小与原视频越像，越大泛化能力越强)
-num_inv_steps: 50
+num_inv_steps: 150
 # 视频生成拆分数（将原视频拆分进行生成以减少显存使用）
 num_splits: 20
 
@@ -94,11 +94,14 @@ controlnet:
     # controlnet scale
     conditioning_scale: 1.0
     # controlnet输入视频路径（False使用video_in_path路径视频自动预处理）
-    video_input: False
+    video_input: "./data/openpose.mp4"
 
-  - type: "hed"
+  - type: "canny"
     conditioning_scale: 1.0
-    video_input: False
+    video_input: "./data/canny.mp4"
+
+
+
 
 
 
@@ -130,15 +133,15 @@ hiresfix_use_controlnet: True
 # controlnet相关参数
 hiresfix_controlnet:
     # controlnet参考视频预处理模式 [canny,depth,hed,mlsd,normal,openpose,scribble,seg]
-  - type: "openpose"
+  - type: "hed"
     # controlnet scale
     conditioning_scale: 1.0
     # controlnet输入视频路径（False使用video_in_path路径视频自动预处理）
     video_input: False
 
-  - type: "hed"
+  - type: "canny"
     conditioning_scale: 1.0
-    video_input: False
+    video_input: "./data/canny.mp4"
 
 
 # 随机数种子
@@ -154,7 +157,7 @@ gpu_ids: "0"
 
 
 # 是否使用预训练模型
-use_pretraining_mode: True
+use_pretraining_mode: False
 # 是否只进行hiresfix
 only_hiresfix: False
 # 是否在only_hiresfix为True时使用hiresfix预训练模型

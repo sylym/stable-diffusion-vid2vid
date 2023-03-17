@@ -15,10 +15,10 @@ cd stable-diffusion-vid2vid
 conda create -n stable-diffusion-vid2vid python=3.10
 conda activate stable-diffusion-vid2vid
  
-conda install pytorch torchvision torchaudio pytorch-cuda=11.7 -c pytorch -c nvidia
+conda install pytorch==1.13.1 torchvision==0.14.1 torchaudio==0.13.1 pytorch-cuda=11.7 -c pytorch -c nvidia
 conda install ffmpeg
 pip install -r requirements.txt
-pip install -U xformers
+pip install xformers==0.0.16
  
 cd Real-ESRGAN
 python setup.py develop
@@ -48,7 +48,7 @@ Note:
 cd scripts
 conda create -n stable-diffusion-vid2vid-scripts python=3.10
 conda activate stable-diffusion-vid2vid-scripts
-conda install pytorch torchvision torchaudio pytorch-cuda=11.7 -c pytorch -c nvidia
+conda install pytorch==1.13.1 torchvision==0.14.1 torchaudio==0.13.1 pytorch-cuda=11.7 -c pytorch -c nvidia
 pip install -r requirements.txt
 
 # assume you have downloaded xxx.safetensors, it will out save_dir in diffusers format.
