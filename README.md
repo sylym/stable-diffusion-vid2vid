@@ -37,10 +37,10 @@ cd ..
 
 ### Write config file
 
-Specify [parameters](https://github.com/sylym/stable-diffusion-vid2vid/blob/master/configs/vid2vid_Bocchi.yaml) such as stable diffusion model, incoming video, outgoing path, etc.
+Specify [parameters](https://github.com/sylym/stable-diffusion-vid2vid/blob/master/configs/vid2vid_configs.yaml) such as stable diffusion model, incoming video, outgoing path, etc.
 
 Note: 
-1. The stable diffusion model needs to be diffusers format. If it is xxx.safesensors or xxx.ckpt, you need to use a [script](https://github.com/huggingface/diffusers/blob/main/scripts/convert_original_stable_diffusion_to_diffusers.py) to convert it.
+1. The stable diffusion model needs to be diffusers format. If it is xxx.safesensors or xxx.ckpt, you need to use a [script](https://github.com/sylym/stable-diffusion-vid2vid/blob/master/scripts/convert_original_stable_diffusion_to_diffusers.py) to convert it.
 
 
 ```bash
