@@ -10,8 +10,6 @@ from tqdm import tqdm
 from einops import rearrange
 from safetensors.torch import load_file
 import cv2
-import moviepy.editor as mp
-import moviepy.video.fx.all as vfx
 import subprocess
 from transformers import pipeline, AutoImageProcessor, UperNetForSemanticSegmentation
 from controlnet_aux import HEDdetector, MLSDdetector, OpenposeDetector
@@ -178,25 +176,7 @@ def down_up_sample(input_frames_folder, down_sample, no_down=False):
         print("do noting with down_up_sample")
 
 
-def video_clip(video_path, start_frame, end_frame, output_path):
-    clip = mp.VideoFileClip(video_path)
-    start_time = start_frame / clip.fps
-    end_time = (end_frame + start_frame) / clip.fps
-    clip = clip.subclip(start_time, end_time)
-    clip.write_videofile(output_path, fps=clip.fps, logger=None)
-
-
-def get_video_fps(video_path):
-    clip = mp.VideoFileClip(video_path)
-    return clip.fps
-
-
-def get_video_frame_count(video_path):
-    clip = mp.VideoFileClip(video_path)
-    return clip.reader.nframes - 1
-
-
-def merge_video(video_list, output_path, fps=59.94, speed=1, generate_video=True):
+def merge_frames(video_list, output_path):
     if os.path.exists(output_path):
         shutil.rmtree(output_path)
     os.makedirs(output_path)
@@ -221,8 +201,6 @@ def merge_video(video_list, output_path, fps=59.94, speed=1, generate_video=True
         new_file_path = os.path.join(dir_name, new_file_name)
         os.rename(file_path, new_file_path)
 
-    if generate_video:
-        subprocess.run(["ffmpeg", "-y", "-r", str(fps), "-f", "image2", "-i", os.path.join(output_path, "%d.png"), "-c:v", "libx264", "-crf", "0", "-vf", f"fps={fps}", output_path + ".mp4"], stderr=subprocess.PIPE, stdout=subprocess.PIPE, check=True)
 
 
 def controlnet_image_preprocessing(image_list, video_prepare_type):
@@ -313,10 +291,8 @@ def controlnet_image_preprocessing(image_list, video_prepare_type):
     else:
         image_list_out = image_list
 
-    if os.path.exists("./temp/controlnet_image"):
-        shutil.rmtree("./temp/controlnet_image")
-    os.makedirs("./temp/controlnet_image")
+    os.makedirs("./temp/input_image", exist_ok=True)
     for image_num in range(len(image_list_out)):
-        image_list_out[image_num].save(f"./temp/controlnet_image/{video_prepare_type + str(image_num)}.png")
+        image_list_out[image_num].save(f"./temp/input_image/{video_prepare_type}_{str(image_num)}.png")
 
     return image_list_out

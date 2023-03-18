@@ -39,24 +39,24 @@ pretrained_embedding:
 # 用于训练的提示 （人物主体 + 动作）
 train_prompt: man,kick
 # 用于推理的正面提示,
-inference_prompt: masterpiece,1girl,solo,(magenta_style_costume,majo_costume,witch_hat,boots,brooch)1.6,kick,simple white background
-# 使用DeepDanbooru自动生成视频的正面提示（会将inference_prompt添加在提示开头）
+inference_prompt: masterpiece,1girl,solo,(magenta_style_costume,majo_costume,witch_hat++,boots,brooch)1.6,kick,simple background
+# 使用DeepDanbooru自动生成正面提示（会将inference_prompt添加在提示开头）
 prompt_generation: False
 # 每帧生成关键词的概率阈值
 prompt_generation_probability_threshold: 0.75
 # 最多生成的prompt数量（以概率排序，优先满足概率阈值）
 prompt_generation_num: 15
 # 用于推理的负面提示
-inference_negative_prompt: EasyNegative,nsfw,(low quality,worst quality)1.4,(bad anatomy)+,(inaccurate limb)1.2,bad composition,inaccurate eyes,extra digit,fewer digits,(extra arms)1.2
+inference_negative_prompt: EasyNegative,nsfw,(low quality,worst quality)1.4,(bad anatomy)+,(inaccurate limb)1.2,bad composition,inaccurate eyes,extra digit,fewer digits,(extra arms)1.2,(bad hands)1.4
 # 用于稳定视频的提示
 ddim_prompt: ""
 
 
-# 传入视频路径（用于训练和生成）
-video_in_path: "./data/original.mp4"
-# 传入视频的帧数（使用传入视频的n_sample_frames帧）
+# 传入视频的路径（用于训练和生成）
+video_in_path: "./data/original"
+# 使用视频帧数
 n_sample_frames: 3
-# 传入视频的帧率（每sample_frame_rate帧使用1帧）(传入视频帧数不少于 n_sample_frames * sample_frame_rate)
+# 每隔sample_frame_rate使用帧(传入视频帧数数不少于 n_sample_frames * sample_frame_rate)
 sample_frame_rate: 3
 
 
@@ -64,24 +64,24 @@ sample_frame_rate: 3
 video_width: 1024
 # 生成视频的高度
 video_height: 1024
-# 生成视频的路径（无文件扩展名，会生成一个MP4视频和一个储存图片序列的同名文件夹）
+# 生成视频的文件夹的路径
 video_out_path: "./outputs/elainaz_action"
 
 
 # 训练步数
 num_train_steps: 500
 # 推理步数
-num_inference_steps: 150
+num_inference_steps: 50
 # 与文字提示的相关度（越大越符合文字提示）
 guidance_scale: 16
 # 使用视频生成视频
 use_vid2vid: False
-# 与传入视频的相关度（越小与传入视频越像）
+# 视频生成视频的相关度（越小与传入视频越像）
 video_strength: 0.9
 # 视频稳定
 use_inv_latent: True
 # 视频稳定的步数(越小与原视频越像，越大泛化能力越强)
-num_inv_steps: 150
+num_inv_steps: 50
 # 视频生成拆分数（将原视频拆分进行生成以减少显存使用）
 num_splits: 20
 
@@ -94,15 +94,15 @@ controlnet:
     # controlnet scale
     conditioning_scale: 1.0
     # controlnet输入视频路径（False使用video_in_path路径视频自动预处理）
-    video_input: "./data/openpose.mp4"
+    video_input: "./data/openpose"
+
+  - type: "depth"
+    conditioning_scale: 1.0
+    video_input: "./data/depth"
 
   - type: "canny"
     conditioning_scale: 1.0
-    video_input: "./data/canny.mp4"
-
-
-
-
+    video_input: "./data/canny"
 
 
 # 高分修正
@@ -114,7 +114,7 @@ hiresfix_num_inference_steps: 200
 # 重绘与文字提示的相关度（越大越符合文字提示）
 hiresfix_guidance_scale: 16
 # 视频重绘程度（越大细节重绘越多）
-hiresfix_strength: 0.5
+hiresfix_strength: 0.6
 # 高分修正使用视频稳定
 hiresfix_use_inv_latent: False
 # 视频稳定的步数
@@ -141,7 +141,7 @@ hiresfix_controlnet:
 
   - type: "canny"
     conditioning_scale: 1.0
-    video_input: "./data/canny.mp4"
+    video_input: "./data/canny"
 
 
 # 随机数种子

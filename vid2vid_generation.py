@@ -4,7 +4,7 @@ import subprocess
 from omegaconf import OmegaConf
 import threading
 from TorchDeepDanbooru.get_prompt import detect_prompt
-from tuneavideo.util import get_video_fps, merge_video, down_up_sample, get_video_frame_count
+from tuneavideo.util import down_up_sample, merge_frames
 import shutil
 import math
 os.environ['MKL_SERVICE_FORCE_INTEL'] = '1'
@@ -72,7 +72,7 @@ def generate_configs():
         inference_config_inference_data["pretrained_embedding"] = args.pretrained_embedding
         if args.prompt_generation:
             inference_config_inference_data["prompt"] = detect_prompt(video_path_in=args.video_in_path, start_frame=inference_config_inference_data["sample_start_idx"],
-                  end_frame=inference_config_inference_data["video_length"], prompt_theme="", probability_threshold=args.prompt_generation_probability_threshold,
+                  end_frame=inference_config_inference_data["video_length"]*args.sample_frame_rate, prompt_theme="", probability_threshold=args.prompt_generation_probability_threshold,
                   prompt_num=args.prompt_generation_num, prompt_head=args.inference_prompt)
         else:
             inference_config_inference_data["prompt"] = args.inference_prompt
@@ -91,7 +91,7 @@ def generate_hiresfix_configs():
                                       max_train_steps=args.hiresfix_num_train_steps,
                                       output_dir=f"./temp/hiresfix_train_{os.path.basename(args.video_in_path).split('.')[0]}_{hiresfix_train_config_num}")
         hiresfix_train_configs_train_data = dict(
-            video_path=f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_full.mp4",
+            video_path=f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_full",
             prompt=args.train_prompt,
             sample_frame_rate=1,
             width=args.video_width,
@@ -128,7 +128,7 @@ def generate_hiresfix_configs():
             hiresfix_inference_config_inference_data["video_length"] = args.hiresfix_num_splits
         hiresfix_inference_config_inference_data["sample_start_idx"] = hiresfix_inference_configs_num * args.hiresfix_num_splits
         hiresfix_inference_config_inference_data["sample_frame_rate"] = 1
-        hiresfix_inference_config_inference_data["video_input_path"] = f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_full.mp4"
+        hiresfix_inference_config_inference_data["video_input_path"] = f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_full"
         hiresfix_inference_config_inference_data["LoRA"] = args.LoRA
         hiresfix_inference_config_inference_data["pretrained_embedding"] = args.pretrained_embedding
         if args.prompt_generation:
@@ -207,20 +207,17 @@ if __name__ == "__main__":
 
     if args.hiresfix:
         # 图片汇总
-        merge_video(video_list, f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_full_pic_processed", generate_video=False)
+        merge_frames(video_list, f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_full")
 
         # 超分辨率
         if args.hiresfix_raise:
-            down_up_sample(f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_full_pic_processed", down_sample=2, no_down=True)
+            down_up_sample(f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_full", down_sample=2, no_down=True)
         else:
-            down_up_sample(f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_full_pic_processed", down_sample=2, no_down=False)
-
-        # 生成视频
-        subprocess.run(["ffmpeg", "-y", "-r", str(get_video_fps(args.video_in_path)), "-f", "image2", "-i", f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_full_pic_processed/%d.png", "-c:v", "libx264", "-crf", "0", "-vf", f"fps={str(get_video_fps(args.video_in_path))}", f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_full.mp4"], stderr=subprocess.PIPE, stdout=subprocess.PIPE, check=True)
+            down_up_sample(f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_full", down_sample=2, no_down=False)
 
         for num_hiresfix in range(args.hiresfix_num):
             # 生成hiresfix训练和推理配置文件
-            frame_count = get_video_frame_count(f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_full.mp4")
+            frame_count = len(os.listdir(f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_full"))
             print("inference frame count: ", frame_count)
             generate_hiresfix_configs()
 
@@ -244,15 +241,15 @@ if __name__ == "__main__":
 
             if num_hiresfix == args.hiresfix_num - 1:
                 # 生成输出视频
-                merge_video(hiresfi_video_list, args.video_out_path, speed=args.sample_frame_rate, fps=get_video_fps(args.video_in_path))
+                merge_frames(hiresfi_video_list, args.video_out_path)
             else:
                 # 生成视频用于下一次hiresfix
-                merge_video(hiresfi_video_list, f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_full", fps=get_video_fps(args.video_in_path))
+                merge_frames(hiresfi_video_list, f"./temp/train_{os.path.basename(args.video_in_path).split('.')[0]}_full")
             if not args.hiresfix_with_train:
                 args.use_hiresfix_pretraining_model = True
     else:
         # 生成输出视频
-        merge_video(video_list, args.video_out_path, speed=args.sample_frame_rate, fps=get_video_fps(args.video_in_path))
+        merge_frames(video_list, args.video_out_path)
 
     if args.delete_temp:
         shutil.rmtree("./temp/")

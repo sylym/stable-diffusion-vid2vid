@@ -1,5 +1,7 @@
 # Adapted from https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/stable_diffusion/pipeline_stable_diffusion.py
 import cv2
+import os
+import re
 import inspect
 from typing import Callable, List, Optional, Union, Tuple
 from dataclasses import dataclass
@@ -464,22 +466,15 @@ class TuneAVideoPipeline(DiffusionPipeline, TextualInversionLoaderMixin):
         return timesteps, num_inference_steps - t_start
 
     def PIL_load_video(self, videoFileName, sample_frame_rate, sample_start_idx, video_length):
-        cap = cv2.VideoCapture(videoFileName)
-        all_frames = []
+        file_list = sorted(os.listdir(videoFileName), key=lambda s: sum(((s, int(n)) for s, n in re.findall(r'(\D+)(\d+)', 'a%s0' % s)), ()))
         sample_frames = []
-        while True:
-            success, data = cap.read()
-            if success:
-                data = cv2.cvtColor(data, cv2.COLOR_BGR2RGB)
-                all_frames.append(PIL.Image.fromarray(data))
-            else:
-                break
-        cap.release()
-        sample_index = list(range(sample_start_idx, len(all_frames), sample_frame_rate))[:video_length]
+        sample_index = list(range(sample_start_idx, len(file_list), sample_frame_rate))[:video_length]
         for i in sample_index:
-            if i >= len(all_frames):
-                raise ValueError(f"Unexpected sample index, got {i}, expected less than {len(all_frames)}")
-            sample_frames.append(all_frames[i])
+            if i >= len(file_list):
+                raise ValueError(f"Unexpected sample index, got {i}, expected less than {len(file_list)}")
+            img = cv2.imread(os.path.join(videoFileName, file_list[i]))
+            img_array = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            sample_frames.append(PIL.Image.fromarray(img_array))
         return sample_frames
 
     @torch.no_grad()
@@ -554,6 +549,7 @@ class TuneAVideoPipeline(DiffusionPipeline, TextualInversionLoaderMixin):
                     images = controlnet_image_preprocessing(images_raw, video_prepare_type_list[controlnet_num])
                 else:
                     images = self.PIL_load_video(controlnet_video_path[controlnet_num], sample_frame_rate, sample_start_idx, video_length)
+                    images = controlnet_image_preprocessing(images, video_prepare_type_list[controlnet_num] + "_input")
                 for image in images:
                     # Prepare image
                     image = self.prepare_image(image, width, height, batch_size * num_videos_per_prompt, num_videos_per_prompt, device, self.controlnet.dtype, do_classifier_free_guidance)

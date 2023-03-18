@@ -6,7 +6,6 @@ from .deep_danbooru_model import DeepDanbooruModel
 from tqdm import tqdm
 import cv2
 import os
-from tuneavideo.util import video_clip
 
 
 def frames2time(frames, fps):  # 给定fps，将帧数转化为指定格式的视频时间（匹配popsub，小时数是假的2333，不能超过1小时，想要什么格式可以自己改ww）
@@ -80,15 +79,11 @@ def video_to_frames(video_path):
 
 
 def detect_prompt(video_path_in, start_frame, end_frame, prompt_theme, prompt_num, prompt_head, probability_threshold):
-    shutil.rmtree("./temp/DeepDanbooru", ignore_errors=True)
     shutil.rmtree("./temp/DeepDanboorutemp", ignore_errors=True)
-    os.mkdir("./temp/DeepDanbooru")
-
-    video_clip(video_path_in, start_frame, end_frame, output_path="./temp/DeepDanbooru/temp.mp4")
-    video_to_frames("./temp/DeepDanbooru")
-
+    os.makedirs("./temp/DeepDanboorutemp")
+    for i in range(start_frame, end_frame):
+        shutil.copy(os.path.join(video_path_in, os.listdir(video_path_in)[i]), f"./temp/DeepDanboorutemp/{os.listdir(video_path_in)[i]}")
     prompt_pre = get_prompt(prompt_theme, "./temp/DeepDanboorutemp", probability_threshold)
-    shutil.rmtree("./temp/DeepDanbooru", ignore_errors=True)
     shutil.rmtree("./temp/DeepDanboorutemp", ignore_errors=True)
 
     #os.makedirs(os.path.dirname(promot_path_out), exist_ok=True)
